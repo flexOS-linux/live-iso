@@ -2,7 +2,7 @@
 
 ## flexOS Live ISO Builder
 
-All latest flexOS OS ISOs available from [Releases page](https://github.com/flexOS/live-iso/releases).
+All latest flexOS OS ISOs available from [Releases page](https://github.com/flexOS-linux/live-iso/releases).
 
 </div>
 
@@ -11,7 +11,7 @@ All latest flexOS OS ISOs available from [Releases page](https://github.com/flex
 1. Clone this project & `cd` into it:
 
 ```sh
-git clone https://github.com/flexOS/live-iso.git && cd live-iso
+git clone https://github.com/flexOS-linux/live-iso.git && cd live-iso
 ```
 
 2. Configure the builder, GRUB and kernel settings in the `config` directory.
