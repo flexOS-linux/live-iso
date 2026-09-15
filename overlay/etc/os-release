@@ -1,0 +1,7 @@
+NAME="flexOS"
+VERSION="0.1-alpha"
+ID=flexos
+ID_LIKE=debian
+PRETTY_NAME="flexOS 0.1-alpha"
+HOME_URL="https://github.com/flexOS-linux"
+BUG_REPORT_URL="https://github.com/flexOS-linux/live-iso/issues"
