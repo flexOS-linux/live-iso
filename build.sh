@@ -1,69 +1,80 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure root permissions
-if [[ "$(id -u)" != 0 ]]; then
-  echo "E: flexOS build system requires root permissions." >&2
-  exit 1
-fi
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE}")" && pwd)"
+CONFIG_FILE="${1:-configs/build.conf}"
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${1:-config/build.conf}"
-
-# Load configuration
 if [[ -f "$BASE_DIR/$CONFIG_FILE" ]]; then
-  echo "[flexOS] Loading config: $CONFIG_FILE"
+  echo "[+] Loading config: $CONFIG_FILE"
   source "$BASE_DIR/$CONFIG_FILE"
 else
   echo "E: Configuration file $CONFIG_FILE not found!" >&2
   exit 1
 fi
 
-# Define build paths
-WORK_DIR="$BASE_DIR/work/$ARCH"
-ROOTFS_DIR="$WORK_DIR/rootfs"
-BUILD_DIR="$BASE_DIR/build"
+WORK_DIR="$BASE_DIR/work"
+ROOTFS_DIR="$WORK_DIR/rootfs/image"
+BUILD_DIR="$BASE_DIR/builds"
+ISO_STAGING="$WORK_DIR/iso_staging"
 
-export BASE_DIR WORK_DIR ROOTFS_DIR BUILD_DIR ARCH DEBIAN_SUITE DEBIAN_MIRROR KERNEL_URL KERNEL_VERSION
+unshare -r -m rm -rf "$ROOTFS_DIR" "$ISO_STAGING"
+mkdir -p "$BUILD_DIR" "$WORK_DIR"
 
 echo "=========================================="
 echo "  Building $DISTRO_NAME ($VERSION-$RELEASE_CHANNEL) [$ARCH]"
 echo "=========================================="
 
-# Cleanup previous workspace
-mkdir -p "$WORK_DIR" "$BUILD_DIR"
+export MKOSI_MIRROR="$DEBIAN_MIRROR"
+mkosi build
 
-# Step 1: Bootstrap
-bash "$BASE_DIR/scripts/01-bootstrap.sh"
+echo "[+] Packing rootfs into SquashFS..."
+LIVE_OS_DIR="$ISO_STAGING/LiveOS"
+mkdir -p "$LIVE_OS_DIR"
 
-# Step 2: Firmware
-bash "$BASE_DIR/scripts/02-firmware.sh"
+unshare -r -m mksquashfs "$ROOTFS_DIR" "$LIVE_OS_DIR/squashfs.img" \
+  -comp zstd \
+  -b 1048576 \
+  -noappend \
+  -e boot/vmlinuz* boot/initrd*
 
-# Step 3: Finalize
-bash "$BASE_DIR/scripts/03-finalize.sh"
+echo "[+] Preparing ISO staging area..."
+BOOT_DIR="$ISO_STAGING/boot"
+GRUB_DIR="$BOOT_DIR/grub"
+mkdir -p "$BOOT_DIR" "$GRUB_DIR"
 
-# Step 4: Kernel
-bash "$BASE_DIR/scripts/04-kernel.sh"
+KERNEL_FILE="$WORK_DIR/rootfs/image.vmlinuz"
+INITRD_FILE="$WORK_DIR/rootfs/image.initrd"
 
-# Step 5: SquashFS
-bash "$BASE_DIR/scripts/05-squashfs.sh"
+if [[ -z "$KERNEL_FILE" || -z "$INITRD_FILE" ]]; then
+  echo "E: Missing Kernel or Initrd inside $ROOTFS_DIR/boot!" >&2
+  exit 1
+fi
 
-# Step 6: ISO
-bash "$BASE_DIR/scripts/06-iso.sh"
+cp "$KERNEL_FILE" "$BOOT_DIR/vmlinuz"
+cp "$INITRD_FILE" "$BOOT_DIR/initrd.img"
 
-echo "=== [flexOS] Packaging ISO Artifacts ==="
+echo "[+] Applying GRUB configuration..."
+if [[ -f "$BASE_DIR/config/grub.cfg" ]]; then
+  cp "$BASE_DIR/config/grub.cfg" "$GRUB_DIR/grub.cfg"
+elif [[ -f "$BASE_DIR/configs/grub.cfg" ]]; then
+  cp "$BASE_DIR/configs/grub.cfg" "$GRUB_DIR/grub.cfg"
+else
+  echo "E: grub.cfg not found!" >&2
+  exit 1
+fi
+
+echo "[+] Building ISO image..."
 YYYYMMDD="$(date +%Y%m%d)"
 ISO_NAME="${DISTRO_NAME}-${VERSION}-${RELEASE_CHANNEL}-${ARCH}-${YYYYMMDD}.iso"
 OUTPUT_ISO="$BUILD_DIR/$ISO_NAME"
 
-mv "$WORK_DIR/live.iso" "$OUTPUT_ISO"
+grub2-mkrescue -o "$OUTPUT_ISO" "$ISO_STAGING" -- -volid "FLEXOS_LIVE"
 
-echo "=== [flexOS] Generating SHA256 checksum ==="
+echo "[+] Generating SHA256 checksum..."
 cd "$BUILD_DIR"
 sha256sum "$ISO_NAME" > "${ISO_NAME}.sha256"
-cd "$BASE_DIR"
 
 echo "=========================================="
 echo " Build finished successfully!"
-echo " Output path: $BUILD_DIR"
+echo " Output path: $OUTPUT_ISO"
 echo "=========================================="

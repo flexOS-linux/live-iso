@@ -1,5 +1,5 @@
 work/
-build/
+builds/
 cache/
 *.iso
 *.squashfs
