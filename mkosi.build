@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+echo "[+] Starting initrd generation..."
+
+KERNEL_RELEASE=$(ls -1v /lib/modules/ 2>/dev/null | tail -n 1 || true)
+
+if [[ -z "$KERNEL_RELEASE" ]]; then
+  echo "E: No kernel modules found in rootfs!" >&2
+  exit 1
+fi
+
+echo "[+] Generating initrd for kernel $KERNEL_RELEASE..."
+mkdir -p "$DESTDIR/boot"
+
+dracut --kver "$KERNEL_RELEASE" \
+       --no-hostonly \
+       --add "dmsquash-live" \
+       --force "$DESTDIR/boot/initrd.img"

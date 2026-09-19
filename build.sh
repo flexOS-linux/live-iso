@@ -21,10 +21,9 @@ unshare -r -m rm -rf "$ROOTFS_DIR" "$ISO_STAGING"
 mkdir -p "$BUILD_DIR" "$WORK_DIR"
 
 echo "=========================================="
-echo "  Building $DISTRO_NAME ($VERSION-$RELEASE_CHANNEL) [$ARCH]"
+echo "  Building $DISTRO_NAME ($VERSION-$RELEASE_CHANNEL)"
 echo "=========================================="
 
-export MKOSI_MIRROR="$DEBIAN_MIRROR"
 mkosi build
 
 echo "[+] Packing rootfs into SquashFS..."
@@ -42,11 +41,13 @@ BOOT_DIR="$ISO_STAGING/boot"
 GRUB_DIR="$BOOT_DIR/grub"
 mkdir -p "$BOOT_DIR" "$GRUB_DIR"
 
-KERNEL_FILE="$WORK_DIR/rootfs/image.vmlinuz"
-INITRD_FILE="$WORK_DIR/rootfs/image.initrd"
+KERNEL_FILE=$(ls -1 "$WORK_DIR"/rootfs/image.vmlinuz 2>/dev/null | head -n 1 || true)
+INITRD_FILE="$ROOTFS_DIR/boot/initrd.img"
 
-if [[ -z "$KERNEL_FILE" || -z "$INITRD_FILE" ]]; then
-  echo "E: Missing Kernel or Initrd inside $ROOTFS_DIR/boot!" >&2
+if [[ ! -f "$KERNEL_FILE" || ! -f "$INITRD_FILE" ]]; then
+echo $KERNEL_FILE
+echo $INITRD_FILE
+  echo "E: Missing Kernel or Initrd!" >&2
   exit 1
 fi
 
