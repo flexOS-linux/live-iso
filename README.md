@@ -14,15 +14,12 @@ All latest flexOS OS ISOs available from [Releases page](https://github.com/flex
 git clone https://github.com/flexOS-linux/live-iso.git && cd live-iso
 ```
 
-2. Configure the builder, GRUB and kernel settings in the `configs` directory.
+2. Configure the builder and GRUB settings in the `configs` directory.
 
 3. Run the build:
 
-> [!WARNING]
-> This script must be run with **sudo** (root privileges).
-
 ```sh
-sudo ./build.sh
+./build.sh
 ```
 
 4. Once completed, the ISO file will be located in the `builds` directory.
